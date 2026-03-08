@@ -1,1 +1,6 @@
-
+[
+{"name":"Virat Kohli","team":"RCB","role":"BAT"},
+{"name":"Rohit Sharma","team":"MI","role":"BAT"},
+{"name":"Jasprit Bumrah","team":"MI","role":"BOWL"},
+{"name":"Hardik Pandya","team":"MI","role":"AR"}
+]
