@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Fantasy Cricket</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#0f172a;
+color:white;
+margin:0;
+padding:15px;
+}
+
+h1{
+text-align:center;
+}
+
+.container{
+display:flex;
+flex-direction:column;
+gap:20px;
+}
+
+.players{
+background:#1e293b;
+padding:15px;
+border-radius:10px;
+}
+
+.team{
+background:#1e293b;
+padding:15px;
+border-radius:10px;
+}
+
+.player{
+background:#334155;
+padding:12px;
+margin:6px 0;
+border-radius:8px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+button{
+background:#22c55e;
+border:none;
+padding:8px 12px;
+border-radius:6px;
+cursor:pointer;
+}
+
+.remove{
+background:#ef4444;
+}
+
+select,input{
+width:100%;
+padding:8px;
+margin-top:6px;
+border-radius:6px;
+border:none;
+}
+
+pre{
+background:#020617;
+padding:10px;
+border-radius:6px;
+font-size:12px;
+}
+
+@media(min-width:900px){
+
+.container{
+flex-direction:row;
+}
+
+.players{
+width:60%;
+}
+
+.team{
+width:40%;
+}
+
+}
+
+</style>
+</head>
+
+
+<body>
+
+<h1>Fantasy Cricket League</h1>
+
+<div class="container">
+
+<div class="players">
+<h2>Available Players</h2>
+<div id="playerList"></div>
+</div>
+
+
+<div class="team">
+
+<h2>Your Team (<span id="count">0</span>/11)</h2>
+<div id="teamList"></div>
+
+<h2>Submit Your Team</h2>
+
+<input id="username" placeholder="Your Name">
+
+<br><br>
+
+Captain:
+<select id="captain"></select>
+
+<br><br>
+
+Vice Captain:
+<select id="viceCaptain"></select>
+
+<br><br>
+
+<button onclick="submitTeam()">Submit Team</button>
+
+<pre id="teamOutput"></pre>
+
+<h2>Upload Match Scorecard</h2>
+
+<input type="file" id="scoreFile">
+
+<button onclick="uploadScorecard()">Upload</button>
+
+<pre id="scoreOutput"></pre>
+
+<h2>League Leaderboard</h2>
+
+<button onclick="calculateLeaderboard()">Calculate Leaderboard</button>
+
+<pre id="leaderboard"></pre>
+
+</div>
+
+</div>
+
+
+<script>
+
+let team=[]
+let submittedTeams=[]
+let lastScorecard=[]
+
+
+async function loadPlayers(){
+
+const res = await fetch("/players")
+const players = await res.json()
+
+let html=""
+
+players.forEach((p)=>{
+
+html+=`
+<div class="player">
+${p.name} (${p.role}) - ${p.team}
+<button onclick="addPlayer('${p.name}')">Add</button>
+</div>
+`
+
+})
+
+document.getElementById("playerList").innerHTML=html
+
+}
+
+
+function addPlayer(name){
+
+if(team.length>=11){
+alert("Maximum 11 players allowed")
+return
+}
+
+team.push(name)
+renderTeam()
+
+}
+
+
+function removePlayer(i){
+
+team.splice(i,1)
+renderTeam()
+
+}
+
+
+function renderTeam(){
+
+document.getElementById("count").innerText = team.length
+
+let html=""
+
+team.forEach((p,i)=>{
+
+html+=`
+<div class="player">
+${p}
+<button class="remove" onclick="removePlayer(${i})">Remove</button>
+</div>
+`
+
+})
+
+document.getElementById("teamList").innerHTML = html
+
+updateCaptainOptions()
+
+}
+
+
+function updateCaptainOptions(){
+
+const captain = document.getElementById("captain")
+const vice = document.getElementById("viceCaptain")
+
+captain.innerHTML=""
+vice.innerHTML=""
+
+team.forEach(p=>{
+
+captain.innerHTML += `<option>${p}</option>`
+vice.innerHTML += `<option>${p}</option>`
+
+})
+
+}
+
+
+function submitTeam(){
+
+const user = document.getElementById("username").value
+const captain = document.getElementById("captain").value
+const vice = document.getElementById("viceCaptain").value
+
+if(!user){
+alert("Enter your name")
+return
+}
+
+const teamData = {
+user,
+team:[...team],
+captain,
+vice,
+points:0
+}
+
+submittedTeams.push(teamData)
+
+document.getElementById("teamOutput").textContent =
+JSON.stringify(submittedTeams,null,2)
+
+alert("Team Submitted!")
+
+}
+
+
+async function uploadScorecard(){
+
+const fileInput = document.getElementById("scoreFile")
+
+if(!fileInput.files.length){
+alert("Please choose a file")
+return
+}
+
+const formData = new FormData()
+formData.append("file", fileInput.files[0])
+
+const res = await fetch("/upload-scorecard",{
+method:"POST",
+body:formData
+})
+
+const data = await res.json()
+
+lastScorecard = data
+
+document.getElementById("scoreOutput").textContent =
+JSON.stringify(data,null,2)
+
+}
+
+
+function calculateLeaderboard(){
+
+let leaderboard=[]
+
+submittedTeams.forEach(t=>{
+
+let total=0
+
+t.team.forEach(player=>{
+
+const stats = lastScorecard.find(p=>p.name===player)
+
+if(stats){
+
+let pts = stats.points
+
+if(player===t.captain) pts*=2
+if(player===t.vice) pts*=1.5
+
+total+=pts
+
+}
+
+})
+
+leaderboard.push({
+user:t.user,
+points:Math.round(total)
+})
+
+})
+
+leaderboard.sort((a,b)=>b.points-a.points)
+
+document.getElementById("leaderboard").textContent =
+JSON.stringify(leaderboard,null,2)
+
+}
+
+
+loadPlayers()
+
+</script>
+
+</body>
+</html>
